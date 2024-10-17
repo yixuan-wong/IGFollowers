@@ -47,3 +47,15 @@ Follow these steps to use the IGFollowers application:
 
    ```bash
    python compare_followers_html.py
+   ```
+### Step 3: Select Your Files
+
+- When prompted, select your HTML files:
+  - **Select the Followers File**: Choose the HTML file that contains your followers.
+  - **Select the Following File**: Choose the HTML file that contains the users you are following.
+
+### Step 4: View the Results
+
+- After the application processes the files, it will display the results in the terminal. The output will include:
+  - **Not Following Back**: The number of users who do not follow you back, along with their usernames.
+  - **Not Followed Back**: The number of users you do not follow back, along with their usernames.
