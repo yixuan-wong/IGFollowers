@@ -46,7 +46,7 @@ Follow these steps to use the IGFollowers application:
    Execute the following command to start the application:
 
    ```bash
-   python compare_followers_html.py
+   python IGFollow.py
    ```
 ### Step 3: Select Your Files
 
