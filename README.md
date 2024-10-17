@@ -33,11 +33,28 @@ Follow these steps to use the IGFollowers application:
 
 ### Step 1: Prepare Your HTML Files
 
+You can get your followers and following HTML files by following these steps:
+
+1. Go to your Instagram profile.
+2. Navigate to **Settings**.
+3. Select **Your Activity**.
+4. Click on **Download Your Information**.
+5. Choose **Download or Transfer Information**.
+6. Select your Instagram account.
+7. In the **Connections** section, check the boxes for **Followers** and **Following**.
+8. Click **Download to Device** and then select **Create Files**.
+
+After a few minutes, you will receive an email with a link to download these files. 
+
+**Important**: Make sure to unzip the downloaded file or drag the following and followers HTML files onto your desktop for easy access.
+
+### Step 2: Prepare Your HTML Files
+
 - Ensure you have two HTML files:
   - **Followers List**: An HTML file containing the list of users who follow you.
-  - **Following List**: An HTML file containing the list of users you follow.
+  - **Following List**: An HTML file containing the list of users you follow.'
 
-### Step 2: Run the Application
+### Step 3: Run the Application
 
 1. **Open a Terminal or Command Prompt**:  
    Navigate to the directory where the IGFollowers project is located.
@@ -48,14 +65,20 @@ Follow these steps to use the IGFollowers application:
    ```bash
    python IGFollow.py
    ```
-### Step 3: Select Your Files
+### Step 4: Select Your Files
 
 - When prompted, select your HTML files:
   - **Select the Followers File**: Choose the HTML file that contains your followers.
   - **Select the Following File**: Choose the HTML file that contains the users you are following.
 
-### Step 4: View the Results
+### Step 5: View the Results
 
 - After the application processes the files, it will display the results in the terminal. The output will include:
   - **Not Following Back**: The number of users who do not follow you back, along with their usernames.
   - **Not Followed Back**: The number of users you do not follow back, along with their usernames.
+
+## Acknowledgments
+
+- **BeautifulSoup**: Thanks to the creators of BeautifulSoup for providing an excellent library for parsing HTML and XML documents.
+- **Tkinter**: Appreciation for the Tkinter library, which allows for the creation of user-friendly graphical interfaces in Python.
+- **Open Source Community**: Grateful for the resources, libraries, and documentation provided by the open-source community that helped in the development of this project.
