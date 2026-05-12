@@ -63,7 +63,7 @@ After a few minutes, you will receive an email with a link to download these fil
    Execute the following command to start the application:
 
    ```bash
-   python IGFollow.py
+   python IGFollowers.py
    ```
 ### Step 4: Select Your Files
 
