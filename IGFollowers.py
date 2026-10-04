@@ -1,50 +1,160 @@
-import tkinter as tk
-from tkinter import filedialog
+import os
+import platform
+import re
+import subprocess
+import sys
 from bs4 import BeautifulSoup
 
-def load_user_names_HTML(filename):
-    with open(filename, 'r', encoding='utf-8') as file:
-        soup = BeautifulSoup(file, 'html.parser')
 
-        usernames = [a.text for a in soup.find_all('a') if a.text]
+def select_file_macos(prompt_title):
+    """Native macOS file picker dialog via AppleScript to avoid Tk/Cocoa segfaults."""
+    script = f'''
+    tell application "System Events"
+        activate
+        try
+            set chosenFile to choose file with prompt "{prompt_title}" of type {{"html", "htm", "public.html"}}
+            return POSIX path of chosenFile
+        on error number -128
+            return ""
+        end try
+    end tell
+    '''
+    try:
+        proc = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return proc.stdout.strip()
+    except subprocess.CalledProcessError:
+        return ""
 
-        for username in usernames: 
-            if username.startswith('https://www.instagram.com/'):
-                usernames[usernames.index(username)] = username.replace('https://www.instagram.com/_u/', '')
 
-        return usernames
-    
-def format_usernames(usernames):
-    return '\n'.join([f"@{username}" for username in usernames])
+def select_file_tk(prompt_title):
+    """Tkinter file picker fallback for Windows or Linux."""
+    import tkinter as tk
+    from tkinter import filedialog
 
-def compare_followers_and_following(followers, following):
-    followers_set = set(followers)
-    following_set = set(following)
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
 
-    # People you are not following back 
-    not_followed_back = followers_set - following_set
-    print(f"Not followed back: {len(not_followed_back)}")
-    if not_followed_back: 
-        print(format_usernames(not_followed_back))
-    else:
-        print("None") 
-    print("\n")
+    file_path = filedialog.askopenfilename(
+        parent=root,
+        title=prompt_title,
+        filetypes=[("HTML Files", "*.html *.htm"), ("All Files", "*.*")]
+    )
+    root.destroy()
+    return file_path
 
-    # People that are not following you back
-    not_following_back = following_set - followers_set
-    print(f"Not following back: {len(not_following_back)}")
-    if not_following_back:
-        print(format_usernames(not_following_back))
-    else:
-        print("None")
 
-root = tk.Tk()
-root.withdraw()
+def select_file(prompt_title):
+    """Route file dialog to native AppleScript on macOS, or Tkinter on other OSs."""
+    if platform.system() == "Darwin":
+        return select_file_macos(prompt_title)
+    return select_file_tk(prompt_title)
 
-followers_file = filedialog.askopenfilename(title = "Select Followers HTML File", filetype = [("HTML Files", "*.html;*.htm")])
-following_file = filedialog.askopenfilename(title = "Select Following HTML File", filetype = [("HTML Files", "*.html;*.htm")])
 
-followers = load_user_names_HTML(followers_file)
-following = load_user_names_HTML(following_file)
+def extract_usernames(html_path):
+    """Extract profile usernames cleanly from new or old Instagram HTML export formats."""
+    if not html_path or not os.path.isfile(html_path):
+        return set()
 
-compare_followers_and_following(followers, following)
+    with open(html_path, "r", encoding="utf-8") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+
+    usernames = set()
+
+    # Strategy 1: Find <a> tags containing instagram profile URLs or inner text
+    for link in soup.find_all("a"):
+        href = link.get("href", "")
+        text = link.get_text(strip=True)
+
+        # Match patterns like: instagram.com/_u/username or instagram.com/username
+        match = re.search(r"instagram\.com/(?:_u/)?([a-zA-Z0-9._]+)", href)
+        if match:
+            usernames.add(match.group(1).lower())
+        elif text and not text.startswith("http") and not any(
+            month in text for month in [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+            ]
+        ):
+            usernames.add(text.lower())
+
+    # Strategy 2: If no <a> links were found (plain text exports), parse textual tags
+    if not usernames:
+        date_pattern = re.compile(
+            r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}",
+            re.IGNORECASE
+        )
+        ignore_words = {"followers", "following", "instagram", "threads", "close friends"}
+
+        for el in soup.find_all(["div", "p", "span", "h2", "h3"]):
+            text = el.get_text(strip=True)
+            # Match standard Instagram username structure (1-30 valid characters)
+            if re.fullmatch(r"[a-zA-Z0-9._]{1,30}", text):
+                if text.lower() not in ignore_words and not date_pattern.match(text):
+                    usernames.add(text.lower())
+
+    # Exclude the owner's username found in the file's 'Generated by' header
+    header = soup.find(string=re.compile(r"Generated by", re.IGNORECASE))
+    if header:
+        owner_match = re.search(r"Generated by\s+([a-zA-Z0-9._]+)", header)
+        if owner_match:
+            owner = owner_match.group(1).lower()
+            usernames.discard(owner)
+
+    return usernames
+
+
+def main():
+    print("Selecting followers file...")
+    followers_file = select_file("Select Followers HTML File")
+    if not followers_file:
+        print("Selection cancelled. Exiting.")
+        sys.exit(0)
+    print(f"Followers file: {followers_file}")
+
+    print("\nSelecting following file...")
+    following_file = select_file("Select Following HTML File")
+    if not following_file:
+        print("Selection cancelled. Exiting.")
+        sys.exit(0)
+    print(f"Following file: {following_file}")
+
+    print("\nExtracting usernames...")
+    followers = extract_usernames(followers_file)
+    following = extract_usernames(following_file)
+
+    if not followers or not following:
+        print("Warning: Could not extract usernames from one or both files.")
+        print(f"Found: {len(followers)} followers, {len(following)} following.")
+        return
+
+    not_following_back = sorted(following - followers)
+    fans = sorted(followers - following)
+
+    print("\n" + "=" * 35)
+    print(f"Total Followers:        {len(followers)}")
+    print(f"Total Following:        {len(following)}")
+    print(f"Not following you back: {len(not_following_back)}")
+    print(f"You don't follow back:  {len(fans)}")
+    print("=" * 35)
+
+    output_filename = "instagram_comparison_results.txt"
+    with open(output_filename, "w", encoding="utf-8") as out:
+        out.write("=== USERS NOT FOLLOWING YOU BACK ===\n")
+        for user in not_following_back:
+            out.write(f"https://www.instagram.com/{user}/\n")
+
+        out.write("\n=== USERS YOU DON'T FOLLOW BACK ===\n")
+        for user in fans:
+            out.write(f"https://www.instagram.com/{user}/\n")
+
+    print(f"\nFull list saved to: {os.path.abspath(output_filename)}")
+
+
+if __name__ == "__main__":
+    main()
